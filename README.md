@@ -1,78 +1,93 @@
-# Vault — Privacy-Preserving Memory Layer on Cognee
+# The Tale of Vault: A Privacy-Preserving Memory Layer for Cognee
 
-Memory layers like Cognee make AI agents remember everything — which is great, until "everything" includes API keys, credentials, or private details that a user pasted into a note without thinking. **Vault** adds a classification and encryption gate in front of Cognee: normal content flows through to get full graph/vector richness, but anything sensitive is encrypted with AES-GCM before it ever reaches Cognee's pipeline. It's indexed separately using a deterministic searchable-encryption scheme so it remains findable by keyword, and every access is cryptographically audited. When you call `forget()`, Vault doesn't just delete rows — it destroys the encryption key, making the ciphertext permanently irrecoverable.
+## Chapter 1: The Curse of the Perfect Memory
 
-## The Problem
+Once upon a time in the realm of AI, there existed memory layers like Cognee. They were magnificent, designed to remember everything an agent was told. This was incredibly powerful—until "everything" began to include API keys, credentials, and whispered secrets that were never meant to be stored forever in plain sight. 
 
-Cognee's hybrid graph-vector search needs to process plaintext to extract entities and compute embeddings. Standard searchable encryption schemes can't support that kind of semantic search natively. 
+The problem was clear: Cognee's brilliant hybrid graph-vector search needed to read the plaintext to understand the world, extract entities, and compute embeddings. But how could one protect the kingdom's secrets when standard searchable encryption couldn't support semantic search natively?
 
-Vault solves this by not trying to encrypt everything. Instead, it decides — chunk by chunk — what Cognee is allowed to see. Safe semantic content gets the full graph treatment; sensitive data is routed exclusively into a locked local vault.
+## Chapter 2: The Vault is Forged
 
-## Architecture
+Our heroes realized they couldn't encrypt the entire world without losing the magic of the graph. Instead, they built **Vault**—a vigilant gatekeeper standing before Cognee. 
+
+Vault operates with a simple but profound rule: *Decide, chunk by chunk, what the AI is allowed to see.* 
+
+When a user speaks, Vault's classifier leaps into action. Safe, everyday knowledge flows freely into Cognee to receive the full graph treatment. But the moment a secret is detected, Vault snatches it away. It encrypts the sensitive data with AES-GCM and locks it in a local SQLite vault, far away from Cognee's prying eyes. 
+
+To ensure the user could still find their secrets, Vault leaves behind a clever Trapdoor Index (HMAC-SHA256). The data remains searchable by keyword, and every glance is cryptographically audited. When the time comes to forget, Vault doesn't just erase the record—it shatters the encryption key, casting the memory into the abyss, permanently irrecoverable.
+
+## Chapter 3: The Architecture of the Gate
 
 ```text
-User Input 
-   │
-   ▼
-[ Classifier ] ──(Sensitive?)──▶ [ YES ] ──▶ AES-GCM Encrypted Vault (Local SQLite)
-   │                                           └─ Trapdoor Index (HMAC-SHA256)
-   │
- [ NO ]
-   │
-   ▼
-Cognee Cloud (Graph/Vector)
+User's Whisper 
+      │
+      ▼
+[ Classifier ] ──(Is it a secret?)──▶ [ YES ] ──▶ AES-GCM Encrypted Vault (Local SQLite)
+      │                                                 └─ Trapdoor Index (HMAC-SHA256)
+      │
+    [ NO ]
+      │
+      ▼
+Cognee Cloud (Graph/Vector Magic)
 ```
 
-## Quickstart
+## Chapter 4: Embarking on the Journey (Quickstart)
 
-1. **Clone and setup the backend**:
+Are you ready to deploy your own Vault? Follow these steps, brave adventurer:
+
+1. **Summon the Backend**:
 ```bash
 git clone <your-repo-url>
 cd vault/backend
 python -m venv venv
-# Windows:
+
+# If you wield Windows:
 .\venv\Scripts\activate
-# Mac/Linux:
+# If you wield Mac/Linux:
 source venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-2. **Environment Setup**:
-Copy `backend/.env.example` to `backend/.env`. Sign in at [platform.cognee.ai](https://platform.cognee.ai) and use the code **COGNEE-35** for free credits.
+2. **Prepare the Environment**:
+Create your sacred `.env` scroll by copying `backend/.env.example` to `backend/.env`. Visit [platform.cognee.ai](https://platform.cognee.ai) and invoke the code **COGNEE-35** for free mystical credits.
+
 ```env
 COGNEE_SERVICE_URL=https://api.cognee.ai
 COGNEE_API_KEY=your_api_key_here
 VAULT_MASTER_KEY=super_secret_master_key
 ```
 
-3. **Run the backend**:
+3. **Awaken the Backend**:
 ```bash
 uvicorn app.main:app --port 8000
 ```
 
-4. **Run the frontend**:
-In a new terminal:
+4. **Awaken the Frontend**:
+In a fresh terminal window, chant:
 ```bash
 cd vault/frontend
 npm install
 npm run dev
 ```
-Open `http://localhost:5173` in your browser.
+Then, gaze into the portal at `http://localhost:5173`.
 
-## Cognee Lifecycle Integration
+## Chapter 5: The Dance with Cognee
 
-Vault deeply integrates with the Cognee SDK lifecycle:
-- **`cognee.remember()`**: Called in `MemoryService.ingest` only for data classified as non-sensitive.
-- **`cognee.recall()`**: Called concurrently alongside the Vault search in `MemoryService.query` to merge graph results with secure trapdoor hits.
-- **`cognee.forget()`**: Triggered alongside cryptographic erasure in `MemoryService.forget` to ensure complete dataset wiping across both partitions.
-- **`cognee.improve()`**: Leveraged in `MemoryService.improve` strictly for the public graph. We explicitly do NOT run LLM-based enrichment over the decrypted sensitive content.
+Vault does not work alone; it dances intimately with the Cognee SDK lifecycle:
 
-## AI Assistant Disclosure
+- **`cognee.remember()`**: The gate opens, but only non-sensitive data may pass into the `MemoryService.ingest`.
+- **`cognee.recall()`**: A dual search occurs. The `MemoryService.query` fetches graph results while Vault simultaneously searches the secure trapdoor, merging the two realms seamlessly.
+- **`cognee.forget()`**: When the command is given, `MemoryService.forget` wipes the public graph, while Vault performs a cryptographic erasure, ensuring the dataset is completely cleansed.
+- **`cognee.improve()`**: Used strictly for the public graph. The LLM is expressly forbidden from enriching the decrypted sensitive content.
 
-Under the hackathon's disclosure rules, I want to clearly state that I utilized Claude (via Anthropic) as a development assistant during this build. I provided strict, sequenced architectural prompts, directed all security and system design decisions, and guided Claude to scaffold the boilerplate, tests, and React UI components. All cryptographic logic, limitations, and control flows were explicitly dictated by my design spec.
+## Epilogue: Confessions of the Architects
 
-## Known Limitations
+Under the sacred rules of the hackathon, we must confess that Claude (via Anthropic) served as our loyal development apprentice. We provided strict architectural decrees and guided Claude to scaffold the boilerplate, forge tests, and craft the React UI. All cryptographic logic, limitations, and control flows were dictated by human design.
 
-- **Search Pattern Leakage**: The deterministic trapdoor index leaks query co-occurrence patterns (an adversary watching the index could infer term frequency). This is a known limitation of deterministic Searchable Symmetric Encryption (SSE), which we mitigate via the access audit log rather than attempting to hide it.
-- **Classifier Evasion**: The current sensitive data classifier is regex-based and is not bulletproof against adversarial obfuscation.
-- **Hackathon Status**: This is a proof-of-concept prototype demonstrating a privacy-preserving routing layer. It is not currently hardened for production deployment.
+## Appendix: The Cracks in the Armor (Known Limitations)
+
+Even the most formidable Vault has its flaws:
+- **Search Pattern Echoes**: The deterministic trapdoor index reveals query patterns. An observant adversary might infer term frequency. We accept this limitation of deterministic Searchable Symmetric Encryption (SSE), choosing to watch the watchers via our access audit log.
+- **The Regex Illusion**: The current classifier relies on regex, a simple spell that a cunning adversary might evade through obfuscation.
+- **A Prototype's Promise**: This Vault is a proof-of-concept. It demonstrates a privacy-preserving routing layer but has not yet been hardened for the brutal battlefields of production.

@@ -3,6 +3,7 @@ import asyncio
 from typing import Optional
 from app.models import IngestResult, QueryResult, ForgetResult, ImproveResult
 from app.classifier import classify_chunk
+from app.crypto import DecryptionFailedError
 from app.vault_store import VaultStore
 import app.cognee_client as cognee_client
 import app.access_log as access_log
@@ -53,7 +54,10 @@ class MemoryService:
         # Wrap the synchronous vault_store.search in an async helper
         # to allow running concurrently with the cognee network call.
         async def _search_vault():
-            return self.vault_store.search(dataset_name, query_text)
+            try:
+                return self.vault_store.search(dataset_name, query_text)
+            except DecryptionFailedError:
+                return []
             
         # Run both searches concurrently
         vault_task = asyncio.create_task(_search_vault())
