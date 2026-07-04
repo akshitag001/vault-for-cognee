@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: vault-backend
+    env: docker
+    rootDir: backend
+    plan: free
+    envVars:
+      - key: COGNEE_SERVICE_URL
+        sync: false
+      - key: COGNEE_API_KEY
+        sync: false
+      - key: VAULT_MASTER_KEY
+        sync: false
+
+  - type: web
+    name: vault-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: vault-backend
+          envVarKey: RENDER_EXTERNAL_URL
