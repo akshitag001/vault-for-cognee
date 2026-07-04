@@ -24,8 +24,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5️⃣ Copy the source code (including the SQLite DB files)
-COPY . .
+# 5️⃣ Copy the source code (including the SQLite DB files) and set ownership
+COPY --chown=$USER:$GID . .
 
 # 6️⃣ Expose the FastAPI port
 EXPOSE 8000
